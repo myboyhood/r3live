@@ -1019,7 +1019,7 @@ int R3LIVE::service_LIO_update()
             geometry_msgs::Quaternion geoQuat = tf::createQuaternionMsgFromRollPitchYaw( euler_cur( 0 ), euler_cur( 1 ), euler_cur( 2 ) );
             odomAftMapped.header.frame_id = "world";
             odomAftMapped.child_frame_id = "/aft_mapped";
-            odomAftMapped.header.stamp = ros::Time::now(); // ros::Time().fromSec(last_timestamp_lidar);
+            odomAftMapped.header.stamp = ros::Time().fromSec(Measures.lidar_end_time); // ros::Time().fromSec(last_timestamp_lidar); ros::Time::now();
             odomAftMapped.pose.pose.orientation.x = geoQuat.x;
             odomAftMapped.pose.pose.orientation.y = geoQuat.y;
             odomAftMapped.pose.pose.orientation.z = geoQuat.z;
@@ -1042,7 +1042,7 @@ int R3LIVE::service_LIO_update()
             transform.setRotation( q );
             br.sendTransform( tf::StampedTransform( transform, ros::Time().fromSec( Measures.lidar_end_time ), "world", "/aft_mapped" ) );
 
-            msg_body_pose.header.stamp = ros::Time::now();
+            msg_body_pose.header.stamp = ros::Time().fromSec(Measures.lidar_end_time);  //ros::Time::now();
             msg_body_pose.header.frame_id = "/camera_odom_frame";
             msg_body_pose.pose.position.x = g_lio_state.pos_end( 0 );
             msg_body_pose.pose.position.y = g_lio_state.pos_end( 1 );

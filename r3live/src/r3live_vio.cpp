@@ -496,7 +496,7 @@ void R3LIVE::publish_camera_odom( std::shared_ptr< Image_frame > &image, double 
     nav_msgs::Odometry camera_odom;
     camera_odom.header.frame_id = "world";
     camera_odom.child_frame_id = "/aft_mapped";
-    camera_odom.header.stamp = ros::Time::now(); // ros::Time().fromSec(last_timestamp_lidar);
+    camera_odom.header.stamp = ros::Time().fromSec(msg_time); // ros::Time().fromSec(last_timestamp_lidar); ros::Time::now()
     camera_odom.pose.pose.orientation.x = odom_q.x();
     camera_odom.pose.pose.orientation.y = odom_q.y();
     camera_odom.pose.pose.orientation.z = odom_q.z();
@@ -521,11 +521,31 @@ void R3LIVE::publish_camera_odom( std::shared_ptr< Image_frame > &image, double 
     pub_path_cam.publish( camera_path );
 }
 
-void R3LIVE::publish_track_pts( Rgbmap_tracker &tracker )
+void R3LIVE::publish_track_pts( Rgbmap_tracker &tracker ,std::shared_ptr< Image_frame > &image )
 {
+    std::ofstream file_time_id_lmd_uv_pose_t_q;
+    // 在特定时间写入文件
+    double time_start = 1728360893.4;
+    double time_end = 1728360894.4;
+    if(image->m_timestamp >= time_start && image->m_timestamp <= time_end) {
+      file_time_id_lmd_uv_pose_t_q.open(
+              "/home/zph/hard_disk/rosbag/lidar/SJTU_campus/outdoor-SJTU-campus-20241008/depth_align/v2-mechanical_A_back/triangle_landmarks/time_id_lmd_uv.txt", std::ios::app);
+      if(!file_time_id_lmd_uv_pose_t_q.is_open()){
+        printf("file open failed\n");
+      }
+    }
+    //相机内参矩阵
+    double fx = g_lio_state.cam_intrinsic(0);
+    double fy = g_lio_state.cam_intrinsic(1);
+    double cx = g_lio_state.cam_intrinsic(2);
+    double cy = g_lio_state.cam_intrinsic(3);
+    //coordinate converter matrix : from world coordinate to camera normalized coordinate
+    Eigen::Matrix3d C_world2norm = (Eigen::Matrix3d() <<  0, -1, 0, 0, 0, -1, 1, 0, 0).finished();
+    Eigen::Matrix3d C_norm2world = (Eigen::Matrix3d() <<  0, 0, 1, -1, 0, 0, 0, -1, 0).finished();
+
     pcl::PointXYZRGB                    temp_point;
     pcl::PointCloud< pcl::PointXYZRGB > pointcloud_for_pub;
-
+//    printf(">>>>>>>>> publish_track_pts %.3f \n", last_timestamp_lidar);
     for ( auto it : tracker.m_map_rgb_pts_in_current_frame_pos )
     {
         vec_3      pt = ( ( RGB_pts * ) it.first )->get_pos();
@@ -537,10 +557,28 @@ void R3LIVE::publish_track_pts( Rgbmap_tracker &tracker )
         temp_point.g = color( 1 );
         temp_point.b = color( 0 );
         pointcloud_for_pub.points.push_back( temp_point );
+        //计算当前帧的uv像素
+        vec_3 pt_in_cam = C_world2norm * pt;
+//        printf("id = %d, pt = %f %f %f\n",(( RGB_pts * ) it.first)->m_pt_index, pt(0), pt(1), pt(2));
+//        printf("id = %d, pt_in_cam = %f %f %f\n", (( RGB_pts * ) it.first)->m_pt_index, pt_in_cam(0), pt_in_cam(1), pt_in_cam(2));
+        double u = it.second.x;
+        double v = it.second.y;
+        //写入文件时间，landmark，uvd，pose
+        if(image->m_timestamp >= time_start && image->m_timestamp <= time_end){
+          // Write to file
+          file_time_id_lmd_uv_pose_t_q << std::fixed << std::setprecision(3) <<image->m_timestamp << " " << (( RGB_pts * ) it.first)->m_pt_index << " "
+                                       << pt(0) << " " << pt(1) << " "  << pt(2) << " "
+                                       << u << " " << v << std::endl;
+        }
+    }
+    //关闭文件
+    if(image->m_timestamp >= time_start && image->m_timestamp <= time_end){
+      file_time_id_lmd_uv_pose_t_q.close();
+      printf("file close\n");
     }
     sensor_msgs::PointCloud2 ros_pc_msg;
     pcl::toROSMsg( pointcloud_for_pub, ros_pc_msg );
-    ros_pc_msg.header.stamp = ros::Time::now(); //.fromSec(last_timestamp_lidar);
+    ros_pc_msg.header.stamp = ros::Time().fromSec(image->m_timestamp); //.fromSec(last_timestamp_lidar); ros::Time::now();
     ros_pc_msg.header.frame_id = "world";       // world; camera_init
     m_pub_visual_tracked_3d_pts.publish( ros_pc_msg );
 }
@@ -1241,10 +1279,12 @@ void R3LIVE::service_VIO_update()
         tim.tic( "Pub" );
         double display_cost_time = std::accumulate( frame_cost_time_vec.begin(), frame_cost_time_vec.end(), 0.0 ) / frame_cost_time_vec.size();
         g_vio_frame_cost_time = display_cost_time;
-        // publish_render_pts( m_pub_render_rgb_pts, m_map_rgb_pts );
+        publish_render_pts( m_pub_render_rgb_pts, m_map_rgb_pts );
         publish_camera_odom( img_pose, message_time );
-        // publish_track_img( op_track.m_debug_track_img, display_cost_time );
+        publish_track_img( op_track.m_debug_track_img, display_cost_time );
+        publish_track_pts(op_track, img_pose);
         publish_track_img( img_pose->m_raw_img, display_cost_time );
+//        printf("message_time - last_timestamp_lidar: %.3f\n", message_time - last_timestamp_lidar);
 
         if ( m_if_pub_raw_img )
         {

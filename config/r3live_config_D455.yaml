@@ -26,10 +26,10 @@ r3live_vio:
    # Fine extrinsic value. form camera-LiDAR calibration.
    # here is C_norm2world in wzy config file.
    camera_ext_R:
-         [-0.0, -0.0, 1,
-            -1,  0.0, 0,
-            0.0,  -1, 0]
-   camera_ext_t: [0,0,-0.09] 
+         [0.0301791, -0.0456841, 0.9985,
+            -0.999437,  0.0132905, 0.0308155,
+            -0.0146784,  -0.998868, -0.0452572]
+   camera_ext_t: [0.120248,-0.192949,0.171097] 
    # Rough extrinsic value, form CAD model, is not correct enough, but can be online calibrated in our datasets.
    # camera_ext_R:
    #    [0, 0, 1,

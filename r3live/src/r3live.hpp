@@ -296,7 +296,7 @@ public:
     void publish_camera_odom(std::shared_ptr<Image_frame> & image, double msg_time);
     void publish_track_img(cv::Mat & img, double frame_cost_time);
     void publish_raw_img(cv::Mat & img);
-    void publish_track_pts( Rgbmap_tracker & tracker  );
+    void publish_track_pts( Rgbmap_tracker & tracker , std::shared_ptr< Image_frame > &image);
     bool vio_preintegration( StatesGroup & state_in, StatesGroup & state_out, double current_frame_time );
     bool vio_esikf(StatesGroup &state_in, Rgbmap_tracker &op_track);
     bool vio_photometric(StatesGroup &state_in, Rgbmap_tracker &op_track, std::shared_ptr<Image_frame> & image);
